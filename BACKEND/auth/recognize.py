@@ -3,7 +3,12 @@ import os
 
 def AuthenticateFace():
     flag = 0  # Initialize flag
-
+    import os
+    import platform
+    
+    # Get the current directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
     # Ensure OpenCV face recognizer is available
     try:
         recognizer = cv2.face.LBPHFaceRecognizer_create()
@@ -11,17 +16,17 @@ def AuthenticateFace():
         print("Error: OpenCV `face` module is missing. Install `opencv-contrib-python`.")
         return flag
 
-    # Load trained model
-    trainer_path = r"D:\JARVIS UPGRADED PART\BACKEND\auth\trainer\trainer.yml"
+    # Load trained model - use relative paths
+    trainer_path = os.path.join(current_dir, "trainer", "trainer.yml")
     if not os.path.exists(trainer_path):
-        print("Error: Trainer file not found.")
+        print(f"Error: Trainer file not found at {trainer_path}")
         return flag
     recognizer.read(trainer_path)
 
     # Load Haar Cascade
-    cascadePath = r"D:\JARVIS UPGRADED PART\BACKEND\auth\haarcascade_frontalface_default.xml"
+    cascadePath = os.path.join(current_dir, "haarcascade_frontalface_default.xml")
     if not os.path.exists(cascadePath):
-        print("Error: Haar cascade XML file not found.")
+        print(f"Error: Haar cascade XML file not found at {cascadePath}")
         return flag
     faceCascade = cv2.CascadeClassifier(cascadePath)
 
@@ -30,7 +35,11 @@ def AuthenticateFace():
     names = ['', '', 'DEVESH']  # Ensure the index matches trained IDs
 
     # Open the camera
-    cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    if platform.system() == "Darwin":  # macOS
+        cam = cv2.VideoCapture(0)  # On Mac, use simpler initialization
+    else:
+        cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Windows-specific
+        
     if not cam.isOpened():
         print("Error: Could not access camera.")
         return flag
@@ -42,6 +51,7 @@ def AuthenticateFace():
     minH = 0.1 * cam.get(4)
 
     print("Authenticating... Look at the camera.")
+
 
     while True:
         ret, img = cam.read()
