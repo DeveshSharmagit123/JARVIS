@@ -7,7 +7,7 @@ cam.set(3, 640)  # Set video FrameWidth
 cam.set(4, 480)  # Set video FrameHeight
 
 # Load Haar Cascade
-xml_path = r"D:\JARVIS UPGRADED PART\BACKEND\auth\haarcascade_frontalface_default.xml"
+xml_path = r"BACKEND/auth/haarcascade_frontalface_default.xml"
 if not os.path.exists(xml_path):
     print("Error: Haarcascade XML file not found.")
     exit()

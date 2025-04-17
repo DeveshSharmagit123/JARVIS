@@ -1,0 +1,9 @@
+eel
+pyobjc
+pygame
+SpeechRecognition
+pyttsx3
+pywhatkit
+pyaudio
+hugchat
+opencv-contrib-python

@@ -1,5 +1,8 @@
 import multiprocessing
+from db_setup import setup_database
 
+# First setup the database
+setup_database()
 
 def startJarvis():
     print ("Process 1 Starting...")

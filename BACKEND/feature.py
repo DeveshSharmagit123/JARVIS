@@ -36,52 +36,169 @@ pygame.mixer.init()
 # Define the function to play sound
 @eel.expose
 def play_assistant_sound():
-    sound_file = r"D:\JARVIS UPGRADED PART\FRONTEND\assets\audio\frontend_assets_audio_start_sound.mp3"
+    sound_file = r"FRONTEND/assets/audio/frontend_assets_audio_start_sound.mp3"
     pygame.mixer.music.load(sound_file)
     pygame.mixer.music.play()
     
     
 def openCommand(query):
-    query = query.replace(ASSISTANT_NAME,"")
-    query = query.replace("open","")
-    query.lower()
+    import platform
+    import webbrowser
+    import os
+    
+    query = query.replace(ASSISTANT_NAME, "")
+    query = query.replace("open", "")
+    query = query.lower().strip()
     
     app_name = query.strip()
+    print(f"Attempting to open: '{app_name}'")
 
     if app_name != "":
-
         try:
-            cursor.execute( 
-                'SELECT path FROM sys_command WHERE name IN (?)', (app_name,))
-            results = cursor.fetchall()
-
-            if len(results) != 0:
-                speak("Opening "+query)
-                os.startfile(results[0][0])
-
-            elif len(results) == 0: 
-                cursor.execute(
-                'SELECT url FROM web_command WHERE name IN (?)', (app_name,))
+            # Check for web commands in the database
+            try:
+                print("Checking web_command table...")
+                cursor.execute('SELECT url FROM web_command WHERE name=?', (app_name,))
                 results = cursor.fetchall()
+                print(f"Web command results: {results}")
                 
-                if len(results) != 0:
-                    speak("Opening "+query)
-                    webbrowser.open(results[0][0])
-
+                if len(results) > 0:
+                    speak(f"Opening {app_name}")
+                    url = results[0][0]
+                    print(f"Opening URL: {url}")
+                    webbrowser.open(url)
+                    return
+                    
+            except Exception as e:
+                print(f"Web command error: {e}")
+            
+            # Check for system commands in the database
+            try:
+                print("Checking sys_command table...")
+                cursor.execute('SELECT path FROM sys_command WHERE name=?', (app_name,))
+                results = cursor.fetchall()
+                print(f"System command results: {results}")
+                
+                if len(results) > 0:
+                    speak(f"Opening {app_name}")
+                    path = results[0][0]
+                    print(f"Opening path: {path}")
+                    if platform.system() == "Darwin":  # macOS
+                        os.system(f'open "{path}"')
+                    else:
+                        os.startfile(path)
+                    return
+                    
+            except Exception as e:
+                print(f"System command error: {e}")
+            
+            # Handle common applications directly
+            if app_name == "youtube":
+                speak(f"Opening YouTube")
+                webbrowser.open("https://www.youtube.com")
+                return
+            elif app_name == "google":
+                speak(f"Opening Google")
+                webbrowser.open("https://www.google.com")
+                return
+            elif app_name == "chatgpt":
+                speak(f"Opening ChatGPT")
+                webbrowser.open("https://chat.openai.com")
+                return
+            
+            # Try to open as a Mac application
+            try:
+                if platform.system() == "Darwin":  # macOS
+                    speak(f"Trying to open {app_name}")
+                    os.system(f'open -a "{app_name}"')
                 else:
-                    speak("Opening "+query)
-                    try:
-                        os.system('start '+query)
-                    except:
-                        speak("not found")
-        except:
-            speak("some thing went wrong")
+                    os.system(f'start {app_name}')
+            except Exception as e:
+                print(f"Error opening app: {e}")
+                # If can't open as an app, try a web search
+                speak(f"I couldn't find {app_name}. Searching the web instead.")
+                webbrowser.open(f"https://www.google.com/search?q={app_name}")
+                
+        except Exception as e:
+            print(f"Error in openCommand: {e}")
+            speak("Something went wrong")
+
+def chatBot(query):
+    user_input = query.lower()
+    try:
+        # Check if the cookie file exists
+        cookie_path = "backend/cookie.json"
+        if not os.path.exists(cookie_path):
+            cookie_path = "BACKEND/cookie.json"
+            if not os.path.exists(cookie_path):
+                # If cookie doesn't exist, provide a simple response
+                print("HugChat cookie not found. Using fallback response.")
+                response = "I'm sorry, I can't access my advanced knowledge right now. Is there something else I can help you with?"
+                speak(response)
+                return response
+        
+        print(f"Using cookie file at {cookie_path}")
+        chatbot = hugchat.ChatBot(cookie_path=cookie_path)
+        id = chatbot.new_conversation()
+        chatbot.change_conversation(id)
+        response = chatbot.chat(user_input)
+        print(f"HugChat response: {response[:100]}...")  # Print first 100 chars
+        speak(response)
+        return response
+    except Exception as e:
+        print(f"ChatBot error: {e}")
+        # Provide simple responses for common queries if HugChat fails
+        if "hello" in user_input or "hi" in user_input:
+            response = "Hello! How can I assist you today?"
+        elif "how are you" in user_input:
+            response = "I'm functioning well, thank you for asking!"
+        elif "thank you" in user_input or "thanks" in user_input:
+            response = "You're welcome! Is there anything else you'd like help with?"
+        elif "bye" in user_input or "goodbye" in user_input:
+            response = "Goodbye! Have a great day!"
+        else:
+            response = "I'm having trouble processing that request. Could you try again or ask something else?"
+        
+        speak(response)
+        return response
+
+def searchWeb(query):
+    """
+    Search the web for the given query
+    """
+    # Remove search keywords
+    search_text = query.lower()
+    search_text = search_text.replace("search", "").replace("google", "").replace("for", "").strip()
+    
+    # If the query is empty after removing search keywords
+    if not search_text:
+        speak("What would you like to search for?")
+        return
+        
+    speak(f"Searching for {search_text}")
+    print(f"Opening Google search for: '{search_text}'")
+    
+    # Perform a Google search
+    try:
+        search_url = f"https://www.google.com/search?q={search_text.replace(' ', '+')}"
+        print(f"Opening URL: {search_url}")
+        webbrowser.open(search_url)
+    except Exception as e:
+        print(f"Search error: {e}")
+        speak("I had trouble performing that search")
 
 
 def PlayYoutube(query):
-    search_term = extract_yt_term(query)
-    speak("Playing "+search_term+" on YouTube")
-    kit.playonyt(search_term)
+    try:
+        search_term = extract_yt_term(query)
+        if search_term:
+            speak("Playing "+search_term+" on YouTube")
+            kit.playonyt(search_term)
+        else:
+            speak("Could not understand what to play on YouTube")
+    except Exception as e:
+        print(f"Error playing YouTube: {e}")
+        speak("I had trouble playing that on YouTube")
 
 
 def hotword():
@@ -186,11 +303,24 @@ def whatsApp(Phone, message, flag, name):
 
 
 def chatBot(query):
-    user_input = query.lower()
-    chatbot = hugchat.ChatBot(cookie_path="backend\cookie.json")
-    id = chatbot.new_conversation()
-    chatbot.change_conversation(id)
-    response =  chatbot.chat(user_input)
-    print(response)
-    speak(response)
-    return response
+    try:
+        user_input = query.lower()
+        # Check if cookie file exists
+        cookie_path = "backend/cookie.json"
+        if not os.path.exists(cookie_path):
+            response = "I'm having trouble accessing my knowledge. Please check if the cookie file exists."
+            speak(response)
+            return response
+            
+        chatbot = hugchat.ChatBot(cookie_path=cookie_path)
+        id = chatbot.new_conversation()
+        chatbot.change_conversation(id)
+        response = chatbot.chat(user_input)
+        print(response)
+        speak(response)
+        return response
+    except Exception as e:
+        print(f"ChatBot error: {e}")
+        response = "I couldn't process that request due to a technical issue."
+        speak(response)
+        return response
